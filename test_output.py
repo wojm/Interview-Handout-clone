@@ -13,7 +13,7 @@ with open('./output.txt', 'r') as file:
     
     for line in lines:
         assert line.strip() == 'Maestro is the best......', \
-            f'expecting "Maestro is the best......" per line, got "${ line }" '
+            f'expecting "Maestro is the best......" per line, got "{ line }"'
 
     assert len(lines) == 25, \
-        f'expecting 25 lines, got ${ len(lines )}'
+        f'expecting 25 lines, got { len(lines) }'
