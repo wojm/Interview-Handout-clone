@@ -1,23 +1,25 @@
 import mock_db
 import uuid
 from worker import worker_main
-from threading import Thread
+from threading import Thread, Lock
+import time
 
-def lock_is_free():
-    """
-        CHANGE ME, POSSIBLY MY ARGS
-
-        Return whether the lock is free
-    """
-
-    return True
-
+# Global Lock
+lock = Lock()
 
 def attempt_run_worker(worker_hash, give_up_after, db, retry_interval):
     """
-        CHANGE MY IMPLEMENTATION, BUT NOT FUNCTION SIGNATURE
-
         Run the worker from worker.py by calling worker_main
+
+        This function includes logic to retry if the lock is unavailable or if there is an exception. 
+        It also includes timeoute logic for all 
+
+        TODO: this function may be better as a higher order function that takes in a function and args 
+        for that function, 
+        ie attempt_run_worker(fn, args, give_up_after=<default>, retry_interval=<default>)
+         - fn = worker_main
+         - args = [ worker_hash, db ]
+        Also, making this a class would allow lock to be a static class variable
 
         Args:
             worker_hash: a random string we will use as an id for the running worker
@@ -27,8 +29,22 @@ def attempt_run_worker(worker_hash, give_up_after, db, retry_interval):
                             until the lock is free, unless we have been trying for more
                             than give_up_after seconds
     """
-    if lock_is_free():
-        worker_main(worker_hash, db)
+
+    start_time = time.time()
+
+    # Do While loop with a time-sensitive break condition
+    while time.time() < start_time + give_up_after:
+        if lock.acquire(False): # non-blocking aquisation of lock
+            try:
+                worker_main(worker_hash, db)
+                break
+            except:
+                print('caught exception')
+            finally:
+                lock.release() # always release block, even if breaking loop
+
+        time.sleep(retry_interval)
+
 
 
 if __name__ == "__main__":
