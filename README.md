@@ -14,6 +14,8 @@ In *worker.py*, we have a simple python script that will write 'Maestro is the b
 
 In *test_output.py* we have a simple test to verify the correctness of the output. We want the text from above to be written several times, separated by 2 newlines each time. Note that this may be fewer than 25 times, as the workers are designed to crash with some probability. Note: Be sure to remove the contents of output.txt after an unsuccessful run, as this could impact subsequent runs of the test script.
 
+In *test.sh* we have a bash script that will clear *output.txt* at the start of the run. 
+
 In *mock_db.py* there are several functions that you can use in your code that will help simulate database calls similar to a real system. This file is only here to provide functionality and should not be edited.
 
 ### Note:
