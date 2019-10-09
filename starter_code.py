@@ -12,10 +12,6 @@ class Lock():
     """
     Lock based off db. Insert into db, if first in queue, proceed. 
 
-    There is a race condition between finding and deleting. Possible for a record to be deleted, 
-    making a new record to now have top priority, but the corresponding thread for a new record 
-    is already passed the find command. This can be mitigated with randomness. 
-
     Args:
         db : database to connect to
         hash : unique hash to specify this request. Could be defaulted to uuid
@@ -29,9 +25,27 @@ class Lock():
         self.task_obj = {
             '_id': f'taskID: { name }',
         }
-        self.latest_acquisition_time = time.time()
-        self.misses_since_last_acquisition = 0
-    
+        if DEBUG:
+            self.start_timestamp = time.time()
+            self.latest_timestamp = self.start_timestamp
+            self.miss_count = 0
+
+    def _stop_watch(self, state):
+        current_time = time.time()
+
+        print(
+            'thread %s after %3.0f misses, in %4.2f seconds since last and %4.2f from the start' \
+            % (
+                state, 
+                self.miss_count, 
+                current_time - self.latest_timestamp, 
+                current_time - self.start_timestamp
+            )
+        )
+
+        self.latest_timestamp = current_time
+        self.miss_count = 0
+
     def acquire(self):
         """
         Aquire the lock. Done by adding a record with a set _id, this record will not be added if a record exists
@@ -40,15 +54,12 @@ class Lock():
             self.db.insert_one(self.task_obj)
 
             if DEBUG:
-                current_time = time.time()
-                print(f'thread acquired after { self.misses_since_last_acquisition } misses in { round(current_time - self.latest_acquisition_time, 2) } seconds')
-                self.latest_acquisition_time = current_time
-                self.misses_since_last_acquisition = 0
+                self._stop_watch('acquired')
 
             return True
         except:
             if DEBUG:
-                self.misses_since_last_acquisition = self.misses_since_last_acquisition + 1
+                self.miss_count = self.miss_count + 1
             
             return False
     
@@ -56,6 +67,9 @@ class Lock():
         """
         Release the lock. Simply delete entry from database
         """
+        if DEBUG:
+            self._stop_watch('deleted ')
+
         self.db.delete_one(self.task_obj)
 
 def attempt_run_worker(worker_hash, give_up_after, db, retry_interval):
@@ -80,11 +94,11 @@ def attempt_run_worker(worker_hash, give_up_after, db, retry_interval):
                             until the lock is free, unless we have been trying for more
                             than give_up_after seconds
     """
-    start_time = time.time()
+    start_timestamp = time.time()
 
-    lock = Lock(db, )
+    lock = Lock(db, 'task')
     # Do While loop with a time-sensitive break condition
-    while time.time() < start_time + give_up_after:
+    while time.time() < start_timestamp + give_up_after:
         if lock.acquire(): # non-blocking acquisation of lock
             try:
                 worker_main(worker_hash, db)
